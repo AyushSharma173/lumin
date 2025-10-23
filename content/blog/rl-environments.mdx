@@ -1,0 +1,32 @@
+---
+title: Designing RL environments that transfer
+date: 2025-10-20
+excerpt: Closing the sim‑to‑real gap.
+---
+
+Bridging the simulation‑to‑reality gap is critical for deploying RL agents in production.
+
+## Key principles
+
+1. **Fidelity where it matters**: Model the aspects that affect decision‑making.
+2. **Randomization**: Domain randomization helps agents generalize.
+3. **Evaluation**: Real‑world metrics from day one.
+
+## Example: Robotic manipulation
+
+Consider a task where an agent must grasp objects of varying shapes and weights. We randomize:
+
+- Object geometry
+- Surface friction
+- Actuator noise
+
+This forces the policy to be robust.
+
+## Results
+
+Agents trained with domain randomization achieve \(15\%\) higher success rates on novel objects compared to agents trained on a single fixed environment.
+
+---
+
+Stay tuned for more on environment design and evaluation.
+

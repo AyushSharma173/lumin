@@ -1,0 +1,29 @@
+---
+title: Evaluating tool‑use agents
+date: 2025-10-18
+excerpt: Benchmarks that actually correlate with outcomes.
+---
+
+Measuring agent performance is hard. Traditional benchmarks don't always reflect real‑world success.
+
+## What to measure
+
+- **Task completion rate**: Did the agent finish the job?
+- **Efficiency**: How many steps or tool calls did it take?
+- **Safety**: Did it violate constraints or cause harm?
+- **Cost**: What was the total inference cost?
+
+## Example evaluation
+
+Here's a simplified success rate over time as we iterate on prompt engineering and tool selection:
+
+<Chart labels={["Week 1","Week 2","Week 3","Week 4"]} values={[42,58,71,84]} title="Task success %" />
+
+## Correlating with business outcomes
+
+We track user satisfaction and compare it with our internal metrics. So far, task completion rate is the strongest predictor of user happiness.
+
+---
+
+More on evals and safety in future posts.
+

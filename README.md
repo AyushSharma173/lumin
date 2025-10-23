@@ -1,24 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lumin
+
+World‑class AI agents for real‑world work. This is the Lumin company website, featuring a landing page, blog system with MDX support, and demo booking flow.
+
+## Features
+
+- 🎨 Modern landing page with hero, features, and metrics
+- 📝 MDX-powered blog with math (KaTeX) and chart support
+- 📧 Demo request form with email notifications
+- 🎯 TypeScript + Next.js 16 (App Router)
+- 💅 Tailwind CSS v4 + Typography plugin
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Set up environment variables (for demo email functionality):
+
+Create a `.env.local` file:
+
+```bash
+DEMO_TO_EMAIL=your-email@example.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+```
+
+3. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the site.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Writing Blog Posts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create MDX files in `content/blog/`:
+
+```mdx
+---
+title: Your Post Title
+date: 2025-10-23
+excerpt: A short summary.
+---
+
+Your content here. Use **markdown**, math \(\alpha\), and components like:
+
+<Chart labels={["A","B","C"]} values={[1,2,3]} title="My data" />
+```
 
 ## Learn More
 
