@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lumin — Autonomous AI Agents for the Real World",
+  title: "Lumin — Long Horizon Agents with Human‑in‑the‑Loop Training",
   description:
-    "We build world‑class AI agents, reinforcement learning environments, and inference infrastructure to tackle real‑world tasks.",
+    "Research‑driven AI agent development through systematic ablations, domain‑specific evaluations, and human feedback infrastructure for complex, long‑term tasks.",
   metadataBase: new URL("https://lumin.example.com"),
 };
 
