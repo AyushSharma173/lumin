@@ -1,0 +1,241 @@
+---
+title: Building a Context-Folding LLM Agent
+date: 2025-01-21
+excerpt: A tutorial inspired by "Scaling Long-Horizon LLM Agent via Context-Folding"
+---
+
+Large Language Model (LLM) agents are fundamentally constrained by context length. As tasks become more complex, agents that linearly accumulate their entire interaction history (reasoning, tool calls, observations) face two major problems:
+
+**Degraded Performance**: Models struggle to find relevant information in an "lost in the middle" problem with excessively long contexts.
+
+**Poor Efficiency**: The quadratic scaling of attention and the overhead of managing the KV-cache become computationally prohibitive.
+
+A recent paper, ["Scaling Long-Horizon LLM Agent via Context-Folding"](https://www.arxiv.org/pdf/2510.11967) (Sun, Lu, et al., 2025), introduces a powerful new mechanism to solve this. Instead of just heuristically summarizing when the context is full, their "Context-Folding" framework empowers an agent to actively manage its own working context. The agent learns to procedurally branch into a sub-trajectory for a subtask and then return from it, "folding" the intermediate steps and retaining only a concise summary.
+
+While the paper's full implementation uses a sophisticated Reinforcement Learning (RL) framework called FoldGRPO to teach an agent this behavior, we can simulate the core logic of this agentic mechanism in a simplified tutorial. We will build an agent that breaks down a task, performs reasoning, and folds completed sub-trajectories into summaries to preserve knowledge while keeping the active memory small.
+
+## Part 1: Environment and Model Setup
+
+We begin by setting up our environment and loading a lightweight Hugging Face model. We use this model to generate and process text locally.
+
+It's important to note that for this tutorial, we're using a small, accessible model (`google/flan-t5-small`) to demonstrate the prompting structure. The original paper's experiments utilized a much larger Seed-OSS-36B-Instruct model, which was fine-tuned using their specialized RL algorithm to truly learn the branching behavior.
+
+```python
+import os, re, sys, math, random, json, textwrap, subprocess, shutil, time
+from typing import List, Dict, Tuple
+
+try:
+   import transformers
+except:
+   subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers", "accelerate", "sentencepiece"], check=True)
+
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+
+MODEL_NAME = os.environ.get("CF_MODEL", "google/flan-t5-small")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+llm = pipeline("text2text-generation", model=model, tokenizer=tokenizer, device_map="auto")
+
+def llm_gen(prompt: str, max_new_tokens=160, temperature=0.0) -> str:
+   out = llm(prompt, max_new_tokens=max_new_tokens, do_sample=temperature>0.0, temperature=temperature)[0]["generated_text"]
+   return out.strip()
+```
+
+## Part 2: Tool and Memory System
+
+We define a simple calculator tool for basic arithmetic. More importantly, we create a `FoldingMemory` class. This class is a simple, heuristic-based implementation of the context folding idea.
+
+In the paper's more advanced framework, this process is far more dynamic. The agent doesn't rely on a character limit; it explicitly learns when to execute branch and return actions. A key technical detail from the paper is that the return action rolls back the KV-cache to the state of the original branch call. This efficiently prunes the attention-state tree, discarding the intermediate tokens from the sub-task and making the process highly efficient. Our simple class simulates this outcome by moving text from an active list to a folds list.
+
+```python
+import ast, operator as op
+
+OPS = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul, ast.Div: op.truediv, ast.Pow: op.pow, ast.USub: op.neg, ast.FloorDiv: op.floordiv, ast.Mod: op.mod}
+
+def _eval_node(n):
+   if isinstance(n, ast.Num): return n.n
+   if isinstance(n, ast.UnaryOp) and type(n.op) in OPS: return OPS[type(n.op)](_eval_node(n.operand))
+   if isinstance(n, ast.BinOp) and type(n.op) in OPS: return OPS[type(n.op)](_eval_node(n.left), _eval_node(n.right))
+   raise ValueError("Unsafe expression")
+
+def calc(expr: str):
+   node = ast.parse(expr, mode='eval').body
+   return _eval_node(node)
+
+class FoldingMemory:
+   def __init__(self, max_chars:int=800):
+       self.active=[]; self.folds=[]; self.max_chars=max_chars
+   
+   def add(self,text:str):
+       self.active.append(text.strip())
+       while len(self.active_text())>self.max_chars and len(self.active)>1:
+           popped=self.active.pop(0)
+           fold=f"- Folded: {popped[:120]}..."
+           self.folds.append(fold)
+   
+   def fold_in(self,summary:str): 
+       self.folds.append(summary.strip())
+   
+   def active_text(self)->str: 
+       return "\n".join(self.active)
+   
+   def folded_text(self)->str: 
+       return "\n".join(self.folds)
+   
+   def snapshot(self)->Dict: 
+       return {"active_chars":len(self.active_text()),"n_folds":len(self.folds)}
+```
+
+## Part 3: Prompt Engineering for a Foldable Agent
+
+These prompt templates are the core of our simulated agent. They guide the off-the-shelf LLM to mimic the specialized behaviors that the FoldGRPO framework teaches through RL.
+
+The paper's model is trained with specific, dense, token-level process rewards to learn this behavior automatically. For example, it uses:
+
+- **Unfolded Token Penalty**: Penalizes the agent for performing token-heavy operations (like tool use) in the main context, encouraging it to branch first.
+- **Out-of-Scope Penalty**: Penalizes the agent if its work within a branch deviates from the sub-task it was assigned, ensuring branches stay focused.
+
+Our prompts for `SUBTASK_DECOMP_PROMPT` and `SUBTASK_SOLVER_PROMPT` explicitly enforce this "plan-execute" and "focused-solver" logic.
+
+```python
+SUBTASK_DECOMP_PROMPT="""You are an expert planner. Decompose the task below into 2-4 crisp subtasks.
+Return each subtask as a bullet starting with '- ' in priority order.
+Task: "{task}" """
+
+SUBTASK_SOLVER_PROMPT="""You are a precise problem solver with minimal steps.
+If a calculation is needed, write one line 'CALC(expr)'.
+Otherwise write 'ANSWER: <final>'.
+Think briefly; avoid chit-chat.
+
+Task: {task}
+Subtask: {subtask}
+Notes (folded context):
+{notes}
+
+Now respond with either CALC(...) or ANSWER: ..."""
+
+SUBTASK_SUMMARY_PROMPT="""Summarize the subtask outcome in <=3 bullets, total <=50 tokens.
+Subtask: {name}
+Steps:
+{trace}
+Final: {final}
+Return only bullets starting with '- '."""
+
+FINAL_SYNTH_PROMPT="""You are a senior agent. Synthesize a final, coherent solution using ONLY:
+- The original task
+- Folded summaries (below)
+Avoid repeating steps. Be concise and actionable.
+
+Task: {task}
+Folded summaries:
+{folds}
+
+"""
+
+def parse_bullets(text:str)->List[str]:
+   return [ln[2:].strip() for ln in text.splitlines() if ln.strip().startswith("- ")]
+```
+
+## Part 4: The Context-Folding Agent Logic
+
+Here we implement the agent's core logic. The `run_subtask` function executes a single, focused sub-problem. The `ContextFoldingAgent` class manages the main loop.
+
+This hard-coded loop (decompose → run all subtasks sequentially → synthesize) is a simplified version of the paper's learned plan-execution framework. Their agent operates in a Planning State (high-level reasoning in the main thread) and an Execution State (focused tool use within a branch), and it learns when to transition between them. Our `run` method manually orchestrates this flow for the tutorial.
+
+```python
+def run_subtask(task:str, subtask:str, memory:FoldingMemory, max_tool_iters:int=3)->Tuple[str,str,List[str]]:
+   notes=(memory.folded_text() or "(none)")
+   trace=[]; final=""
+   
+   for _ in range(max_tool_iters):
+       prompt=SUBTASK_SOLVER_PROMPT.format(task=task,subtask=subtask,notes=notes)
+       out=llm_gen(prompt,max_new_tokens=96); trace.append(out)
+       m=re.search(r"CALC\((.+?)\)",out)
+       if m:
+           try:
+               val=calc(m.group(1))
+               trace.append(f"TOOL:CALC -> {val}")
+               out2=llm_gen(prompt+f"\nTool result: {val}\nNow produce 'ANSWER: ...' only.",max_new_tokens=64)
+               trace.append(out2)
+               if out2.strip().startswith("ANSWER:"):
+                   final=out2.split("ANSWER:",1)[1].strip(); break
+           except Exception as e:
+               trace.append(f"TOOL:CALC ERROR -> {e}")
+       if out.strip().startswith("ANSWER:"):
+           final=out.split("ANSWER:",1)[1].strip(); break
+   
+   if not final:
+       final="No definitive answer; partial reasoning:\n"+"\n".join(trace[-2:])
+   
+   summ=llm_gen(SUBTASK_SUMMARY_PROMPT.format(name=subtask,trace="\n".join(trace),final=final),max_new_tokens=80)
+   summary_bullets="\n".join(parse_bullets(summ)[:3]) or f"- {subtask}: {final[:60]}..."
+   return final, summary_bullets, trace
+
+class ContextFoldingAgent:
+   def __init__(self,max_active_chars:int=800):
+       self.memory=FoldingMemory(max_chars=max_active_chars)
+       self.metrics={"subtasks":0,"tool_calls":0,"chars_saved_est":0}
+   
+   def decompose(self,task:str)->List[str]:
+       plan=llm_gen(SUBTASK_DECOMP_PROMPT.format(task=task),max_new_tokens=96)
+       subs=parse_bullets(plan)
+       return subs[:4] if subs else ["Main solution"]
+   
+   def run(self,task:str)->Dict:
+       t0=time.time()
+       self.memory.add(f"TASK: {task}")
+       subtasks=self.decompose(task)
+       self.metrics["subtasks"]=len(subtasks)
+       folded=[]
+       
+       for st in subtasks:
+           self.memory.add(f"SUBTASK: {st}")
+           final,fold_summary,trace=run_subtask(task,st,self.memory)
+           self.memory.fold_in(fold_summary)
+           folded.append(f"- {st}: {final}")
+           self.memory.add(f"SUBTASK_DONE: {st}")
+       
+       final=llm_gen(FINAL_SYNTH_PROMPT.format(task=task,folds=self.memory.folded_text()),max_new_tokens=200)
+       t1=time.time()
+       
+       return {"task":task,"final":final.strip(),"folded_summaries":self.memory.folded_text(),
+               "active_context_chars":len(self.memory.active_text()),
+               "subtask_finals":folded,"runtime_sec":round(t1-t0,2)}
+```
+
+## Part 5: Running the Demo
+
+We run our agent on sample tasks. While these are simple, they illustrate the complete context-folding process: planning, executing subtasks, folding the results into memory, and synthesizing a final answer.
+
+The paper benchmarks this approach on much more complex, long-horizon tasks like BrowseComp-Plus (deep research) and SWE-Bench Verified (software engineering). The results are impressive: the full FoldGRPO-trained agent matched or outperformed baselines (like ReAct) that used a massive 327K token context, all while maintaining an active context of only 32K (a 10x reduction). Ablation studies showed their agent could compress over 90% of the total interaction tokens into its folded summaries, demonstrating extreme efficiency.
+
+```python
+DEMO_TASKS=[
+   "Plan a 3-day study schedule for ML with daily workouts and simple meals; include time blocks.",
+   "Compute a small project budget with 3 items (laptop 799.99, course 149.5, snacks 23.75), add 8% tax and 5% buffer, and present a one-paragraph recommendation."]
+
+def pretty(d): return json.dumps(d, indent=2, ensure_ascii=False)
+
+if __name__=="__main__":
+   agent=ContextFoldingAgent(max_active_chars=700)
+   for i,task in enumerate(DEMO_TASKS,1):
+       print("="*70)
+       print(f"DEMO #{i}: {task}")
+       res=agent.run(task)
+       print("\n--- Folded Summaries ---\n"+(res["folded_summaries"] or "(none)"))
+       print("\n--- Final Answer ---\n"+res["final"])
+       print("\n--- Diagnostics ---")
+       diag={k:res[k] for k in ["active_context_chars","runtime_sec"]}
+       diag["n_subtasks"]=len(agent.decompose(task))
+       print(pretty(diag))
+```
+
+## Conclusion
+
+In this tutorial, we've built a lightweight, prompt-driven simulation of a Context-Folding agent. We saw how decomposing a task, executing focused subtasks, and then "folding" the results into a compressed memory allows us to tackle problems step-by-step without overloading our context window.
+
+The key insight from the ["Scaling Long-Horizon LLM Agent via Context-Folding"](https://www.arxiv.org/pdf/2510.11967) paper is that agents shouldn't just be given more context; they must be taught to actively manage it. Their FoldGRPO framework provides a principled path to do this with reinforcement learning, training the agent to master branching and summarization as a core, learnable skill. This moves beyond heuristic summarization to an efficient, agentic mechanism that scales reasoning effectively.
+
+---
+
+*This tutorial demonstrates how to implement context-folding mechanisms inspired by cutting-edge research, showing how agents can actively manage their working memory to handle complex, long-horizon tasks efficiently.*

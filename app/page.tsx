@@ -8,12 +8,12 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 pb-24 pt-20 md:pb-32 md:pt-28">
           <div className="max-w-3xl">
             <h1 className="text-balance text-5xl font-semibold tracking-tight md:text-6xl">
-              Long horizon agents with human‑in‑the‑loop training infrastructure
+              Enterprise‑sovereign AI systems that capture behavioral data
             </h1>
             <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-zinc-500">
-              Lumin puts cutting‑edge AI agent research into practice through systematic ablations, 
-              domain‑specific evaluations, and latest methodologies. We build training infrastructure 
-              that enables human feedback loops for complex, long‑term tasks.
+              We believe the future of enterprise AI is in open, auditable frameworks—not black-box APIs. 
+              Our research delivers multi-agent systems that solve real-world, long-running business processes 
+              by capturing the unwritten decision-making logic of your employees.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Link
@@ -33,21 +33,21 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
         <div className="grid gap-8 md:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm dark:bg-black/40">
-            <h3 className="text-lg font-semibold">Research‑driven development</h3>
+            <h3 className="text-lg font-semibold">Enterprise‑sovereign systems</h3>
             <p className="mt-2 text-sm text-zinc-500">
-              Systematic ablations and controlled studies to validate latest techniques before deployment.
+              Open, auditable frameworks that give you control over your AI infrastructure—no black-box dependencies.
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm dark:bg-black/40">
-            <h3 className="text-lg font-semibold">Human‑in‑the‑loop training</h3>
+            <h3 className="text-lg font-semibold">Behavioral data capture</h3>
             <p className="mt-2 text-sm text-zinc-500">
-              Infrastructure for collecting, processing, and incorporating human feedback into long‑horizon agent learning.
+              Systems that learn from your experts' unwritten decision-making logic, not just their outputs.
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm dark:bg-black/40">
-            <h3 className="text-lg font-semibold">Domain‑specific evaluation</h3>
+            <h3 className="text-lg font-semibold">Provable reliability</h3>
             <p className="mt-2 text-sm text-zinc-500">
-              Custom benchmarks and evaluation suites that correlate with real‑world performance and user value.
+              Rigorous validation against failure taxonomies to solve the perfection fallacy and deliver dependable results.
             </p>
           </div>
         </div>
@@ -56,11 +56,11 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
         <div className="grid items-center gap-10 md:grid-cols-2">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight">From research papers to production</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Building your competitive moat</h2>
             <p className="mt-4 text-zinc-500">
-              We bridge the gap between academic breakthroughs and practical deployment. Our methodology 
-              combines rigorous experimentation with robust engineering to deliver agents that learn 
-              from human feedback and perform reliably over extended time horizons.
+              We design sandboxed RL environments and asynchronous human handoffs to capture the behavioral data 
+              that makes your organization unique. Our approach moves beyond the perfection fallacy to deliver 
+              bespoke, provably reliable systems that work for your specific business processes.
             </p>
             <div className="mt-6 flex gap-4">
               <Link href="/about" className="text-sm font-medium underline underline-offset-4 hover:opacity-80">
@@ -69,22 +69,18 @@ export default function Home() {
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-500/10 to-cyan-500/10 p-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-4">
               <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-                <div className="text-zinc-400">Training efficiency</div>
-                <div className="mt-2 text-2xl font-semibold">+67%</div>
+                <div className="text-sm text-zinc-400">Our focus</div>
+                <div className="mt-2 text-lg font-semibold">Enterprise-sovereign AI</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-                <div className="text-zinc-400">Human feedback cycles</div>
-                <div className="mt-2 text-2xl font-semibold">24h</div>
+                <div className="text-sm text-zinc-400">Key insight</div>
+                <div className="mt-2 text-lg font-semibold">Behavioral data LLM power</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-                <div className="text-zinc-400">Task horizon</div>
-                <div className="mt-2 text-2xl font-semibold">30+ steps</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-                <div className="text-zinc-400">Evaluation accuracy</div>
-                <div className="mt-2 text-2xl font-semibold">94%</div>
+                <div className="text-sm text-zinc-400">Our promise</div>
+                <div className="mt-2 text-lg font-semibold">Provably reliable systems</div>
               </div>
             </div>
           </div>

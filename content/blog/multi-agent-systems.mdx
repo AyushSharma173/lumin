@@ -1,0 +1,255 @@
+---
+title: How I Built an Intelligent Multi-Agent Systems with AutoGen, LangChain, and Hugging Face
+date: 2025-01-21
+excerpt: Demonstrating practical agentic AI workflows with open-source tools
+---
+
+In this tutorial, we dive into the essence of Agentic AI by uniting LangChain, AutoGen, and Hugging Face into a single, fully functional framework that runs without paid APIs. We begin by setting up a lightweight open-source pipeline and then progress through structured reasoning, multi-step workflows, and collaborative agent interactions. As we move from LangChain chains to simulated multi-agent systems, we experience how reasoning, planning, and execution can seamlessly blend to form autonomous, intelligent behavior, entirely within our control and environment.
+
+## Setting Up the Environment
+
+We start by setting up our environment and bringing in all the necessary libraries. We initialize a Hugging Face FLAN-T5 pipeline as our local language model, ensuring it can generate coherent, contextually rich text. We confirm that everything loads successfully, laying the groundwork for the agentic experiments that follow.
+
+```python
+import warnings
+warnings.filterwarnings('ignore')
+
+from typing import List, Dict
+import autogen
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
+import json
+
+print("🚀 Loading models...\n")
+
+pipe = pipeline(
+   "text2text-generation",
+   model="google/flan-t5-base",
+   max_length=200,
+   temperature=0.7
+)
+
+llm = HuggingFacePipeline(pipeline=pipe)
+print("✓ Models loaded!\n")
+```
+
+## Demo 1: LangChain - Intelligent Prompt Chains
+
+We explore LangChain's capabilities by constructing intelligent prompt templates that allow our model to reason through tasks. We build both a simple one-step chain and a multi-step reasoning flow that break complex goals into clear subtasks. We observe how LangChain enables structured thinking and turns plain instructions into detailed, actionable responses.
+
+```python
+def demo_langchain_basics():
+   print("="*70)
+   print("DEMO 1: LangChain - Intelligent Prompt Chains")
+   print("="*70 + "\n")
+   prompt = PromptTemplate(
+       input_variables=["task"],
+       template="Task: {task}\n\nProvide a detailed step-by-step solution:"
+   )
+   chain = LLMChain(llm=llm, prompt=prompt)
+   task = "Create a Python function to calculate fibonacci sequence"
+   print(f"Task: {task}\n")
+   result = chain.run(task=task)
+   print(f"LangChain Response:\n{result}\n")
+   print("✓ LangChain demo complete\n")
+
+def demo_langchain_multi_step():
+   print("="*70)
+   print("DEMO 2: LangChain - Multi-Step Reasoning")
+   print("="*70 + "\n")
+   planner = PromptTemplate(
+       input_variables=["goal"],
+       template="Break down this goal into 3 steps: {goal}"
+   )
+   executor = PromptTemplate(
+       input_variables=["step"],
+       template="Explain how to execute this step: {step}"
+   )
+   plan_chain = LLMChain(llm=llm, prompt=planner)
+   exec_chain = LLMChain(llm=llm, prompt=executor)
+   goal = "Build a machine learning model"
+   print(f"Goal: {goal}\n")
+   plan = plan_chain.run(goal=goal)
+   print(f"Plan:\n{plan}\n")
+   print("Executing first step...")
+   execution = exec_chain.run(step="Collect and prepare data")
+   print(f"Execution:\n{execution}\n")
+   print("✓ Multi-step reasoning complete\n")
+```
+
+## Demo 3: Simple Multi-Agent System
+
+We design lightweight agents powered by the same Hugging Face pipeline, each assigned a specific role, such as researcher, coder, or reviewer. We let these agents collaborate on a simple coding task, exchanging information and building upon each other's outputs. We witness how a coordinated multi-agent workflow can emulate teamwork, creativity, and self-organization in an automated setting.
+
+```python
+class SimpleAgent:
+   def __init__(self, name: str, role: str, llm_pipeline):
+       self.name = name
+       self.role = role
+       self.pipe = llm_pipeline
+       self.memory = []
+   
+   def process(self, message: str) -> str:
+       prompt = f"You are a {self.role}.\nUser: {message}\nYour response:"
+       response = self.pipe(prompt, max_length=150)[0]['generated_text']
+       self.memory.append({"user": message, "agent": response})
+       return response
+   
+   def __repr__(self):
+       return f"Agent({self.name}, role={self.role})"
+
+def demo_simple_agents():
+   print("="*70)
+   print("DEMO 3: Simple Multi-Agent System")
+   print("="*70 + "\n")
+   researcher = SimpleAgent("Researcher", "research specialist", pipe)
+   coder = SimpleAgent("Coder", "Python developer", pipe)
+   reviewer = SimpleAgent("Reviewer", "code reviewer", pipe)
+   print("Agents created:", researcher, coder, reviewer, "\n")
+   task = "Create a function to sort a list"
+   print(f"Task: {task}\n")
+   print(f"[{researcher.name}] Researching...")
+   research = researcher.process(f"What's the best approach to: {task}")
+   print(f"Research: {research[:100]}...\n")
+   print(f"[{coder.name}] Coding...")
+   code = coder.process(f"Write Python code to: {task}")
+   print(f"Code: {code[:100]}...\n")
+   print(f"[{reviewer.name}] Reviewing...")
+   review = reviewer.process(f"Review this approach: {code[:50]}")
+   print(f"Review: {review[:100]}...\n")
+   print("✓ Multi-agent workflow complete\n")
+```
+
+## Demo 4: AutoGen Concepts
+
+We illustrate AutoGen's core idea by defining a conceptual configuration of agents and their workflow. We then simulate an AutoGen-style conversation using a custom mock LLM that generates realistic yet controllable responses. We realize how this framework allows multiple agents to reason, test, and refine ideas collaboratively without relying on any external APIs.
+
+```python
+def demo_autogen_conceptual():
+   print("="*70)
+   print("DEMO 4: AutoGen Concepts (Conceptual Demo)")
+   print("="*70 + "\n")
+   agent_config = {
+       "agents": [
+           {"name": "UserProxy", "type": "user_proxy", "role": "Coordinates tasks"},
+           {"name": "Assistant", "type": "assistant", "role": "Solves problems"},
+           {"name": "Executor", "type": "executor", "role": "Runs code"}
+       ],
+       "workflow": [
+           "1. UserProxy receives task",
+           "2. Assistant generates solution",
+           "3. Executor tests solution",
+           "4. Feedback loop until complete"
+       ]
+   }
+   print(json.dumps(agent_config, indent=2))
+   print("\n📝 AutoGen Key Features:")
+   print("  • Automated agent chat conversations")
+   print("  • Code execution capabilities")
+   print("  • Human-in-the-loop support")
+   print("  • Multi-agent collaboration")
+   print("  • Tool/function calling\n")
+   print("✓ AutoGen concepts explained\n")
+
+class MockLLM:
+   def __init__(self):
+       self.responses = {
+           "code": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+           "explain": "This is a recursive implementation of the Fibonacci sequence.",
+           "review": "The code is correct but could be optimized with memoization.",
+           "default": "I understand. Let me help with that task."
+       }
+   
+   def generate(self, prompt: str) -> str:
+       prompt_lower = prompt.lower()
+       if "code" in prompt_lower or "function" in prompt_lower:
+           return self.responses["code"]
+       elif "explain" in prompt_lower:
+           return self.responses["explain"]
+       elif "review" in prompt_lower:
+           return self.responses["review"]
+       return self.responses["default"]
+
+def demo_autogen_with_mock():
+   print("="*70)
+   print("DEMO 5: AutoGen with Custom LLM Backend")
+   print("="*70 + "\n")
+   mock_llm = MockLLM()
+   conversation = [
+       ("User", "Create a fibonacci function"),
+       ("CodeAgent", mock_llm.generate("write code for fibonacci")),
+       ("ReviewAgent", mock_llm.generate("review this code")),
+   ]
+   print("Simulated AutoGen Multi-Agent Conversation:\n")
+   for speaker, message in conversation:
+       print(f"[{speaker}]")
+       print(f"{message}\n")
+   print("✓ AutoGen simulation complete\n")
+```
+
+## Demo 6: Hybrid System
+
+We combine LangChain's structured reasoning with our simple agentic system to create a hybrid intelligent framework. We allow LangChain to analyze problems while the agents plan and execute corresponding actions in sequence. We conclude the demonstration by running all modules together, showcasing how open-source tools can integrate seamlessly to build adaptive, autonomous AI systems.
+
+```python
+def demo_hybrid_system():
+   print("="*70)
+   print("DEMO 6: Hybrid LangChain + Multi-Agent System")
+   print("="*70 + "\n")
+   reasoning_prompt = PromptTemplate(
+       input_variables=["problem"],
+       template="Analyze this problem: {problem}\nWhat are the key steps?"
+   )
+   reasoning_chain = LLMChain(llm=llm, prompt=reasoning_prompt)
+   planner = SimpleAgent("Planner", "strategic planner", pipe)
+   executor = SimpleAgent("Executor", "task executor", pipe)
+   problem = "Optimize a slow database query"
+   print(f"Problem: {problem}\n")
+   print("[LangChain] Analyzing problem...")
+   analysis = reasoning_chain.run(problem=problem)
+   print(f"Analysis: {analysis[:120]}...\n")
+   print(f"[{planner.name}] Creating plan...")
+   plan = planner.process(f"Plan how to: {problem}")
+   print(f"Plan: {plan[:120]}...\n")
+   print(f"[{executor.name}] Executing...")
+   result = executor.process(f"Execute: Add database indexes")
+   print(f"Result: {result[:120]}...\n")
+   print("✓ Hybrid system complete\n")
+
+if __name__ == "__main__":
+   print("="*70)
+   print("🤖 ADVANCED AGENTIC AI TUTORIAL")
+   print("AutoGen + LangChain + HuggingFace")
+   print("="*70 + "\n")
+   demo_langchain_basics()
+   demo_langchain_multi_step()
+   demo_simple_agents()
+   demo_autogen_conceptual()
+   demo_autogen_with_mock()
+   demo_hybrid_system()
+   print("="*70)
+   print("🎉 TUTORIAL COMPLETE!")
+   print("="*70)
+   print("\n📚 What You Learned:")
+   print("  ✓ LangChain prompt engineering and chains")
+   print("  ✓ Multi-step reasoning with LangChain")
+   print("  ✓ Building custom multi-agent systems")
+   print("  ✓ AutoGen architecture and concepts")
+   print("  ✓ Combining LangChain + agents")
+   print("  ✓ Using HuggingFace models (no API needed!)")
+   print("\n💡 Key Takeaway:")
+   print("  You can build powerful agentic AI systems without expensive APIs!")
+   print("  Combine LangChain's chains with multi-agent architectures for")
+   print("  intelligent, autonomous AI systems.")
+   print("="*70 + "\n")
+```
+
+## Conclusion
+
+In conclusion, we witness how Agentic AI transforms from concept to reality through a simple, modular design. We combine the reasoning depth of LangChain with the cooperative power of agents to build adaptable systems that think, plan, and act independently. The result is a clear demonstration that powerful, autonomous AI systems can be built without expensive infrastructure, leveraging open-source tools, creative design, and a bit of experimentation.
+
+---
+
+*This tutorial demonstrates practical approaches to building intelligent multi-agent systems using open-source tools, showcasing how reasoning, planning, and execution can seamlessly blend to form autonomous AI behavior.*
