@@ -8,7 +8,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 pb-24 pt-20 md:pb-32 md:pt-28">
           <div className="max-w-3xl">
             <h1 className="text-balance text-5xl font-semibold tracking-tight md:text-6xl">
-              Enterprise‑sovereign AI systems that capture behavioral data
+              Long horizon agents with human‑in‑the‑loop
             </h1>
             <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-zinc-500">
               We believe the future of enterprise AI is in open, auditable frameworks—not black-box APIs. 
